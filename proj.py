@@ -14,7 +14,7 @@ def parse_input(input_file):
                 test_data = list(test_data)
                 # Parse the machine data
                 # If no machines are specified, then all machines can handle the task
-                if len(list(test_data[2])) == 0:
+                if len(set(test_data[2])) == 0:
                     test_data[2] = {int(i) for i in range(1, num_machines + 1)}
                 else:
                     data = set()
@@ -23,13 +23,16 @@ def parse_input(input_file):
                     test_data[2] = data
                 # Parse the resource data
                 # If no resources are specified, then no resources are needed
-                if len(list(test_data[3])) == 0:
+                if len(set(test_data[3])) == 0:
                     test_data[3] = {}
+                    #test_data[3] = str(test_data[3]).replace("set()", "{}")
+
                 else:
                     data = set()
                     for i in test_data[3]:
                         data.add(int(i.replace('r', '')))
                     test_data[3] = data
+                
                 
                 tests.append({
                     'duration': test_data[1],
@@ -52,22 +55,40 @@ def solve_tsp(tests, num_machines, num_resources):
     # Load data
     num_tests = len(tests)
     instance["num_tests"] = num_tests
-    print(f"num_tests: {num_tests}")
     instance["num_machines"] = num_machines
-    print(f"num_machines: {num_machines}")
     instance["num_resources"] = num_resources
-    print(f"num_resources: {num_resources}")
-    instance["durations"] = [test['duration'] for test in tests]
-    print(f"durantions: {[test['duration'] for test in tests]}")
-    instance["required_machines"] = [test['machines'] for test in tests]
-    print(f"required_machines: {[test['machines'] for test in tests]}")
-    instance["required_resources"] = [test['resources'] for test in tests]
-    print(f"required_resources: {[test['resources'] for test in tests]}")
 
+    # Durations - already a list of integers
+    instance["durations"] = [test['duration'] for test in tests]
+
+    # Required machines - pass sets of machines directly
+    instance["required_machines"] = [test['machines'] for test in tests]
+
+    # Required resources - ensure that empty sets are passed correctly
+    required_resources = []
+    for res_set in [test['resources'] for test in tests]:
+        if not res_set:
+            required_resources.append(set())  # MiniZinc-compatible empty set
+        else:
+            required_resources.append(res_set)
+
+    instance["required_resources"] = required_resources
+
+    # Debug print
+    print(f"Durations: {instance['durations']}")
+    print(f"Required Machines: {instance['required_machines']}")
+    print(f"Required Resources: {instance['required_resources']}")
 
     # Solve and get the result
-    result = instance.solve()
-    return result
+    try:
+        result = instance.solve()
+        return result
+    except minizinc.error.MiniZincError as e:
+        print(f"Error in solving the MiniZinc model: {e}")
+        raise
+
+
+
 
 
 def write_output(output_file, solution):
@@ -89,7 +110,7 @@ def main():
     solution = solve_tsp(tests, num_machines, num_resources)
 
     # Write the solution to the output file
-    #write_output(output_file, solution)
+    # write_output(output_file, solution)
 
 if __name__ == "__main__":
     main()
