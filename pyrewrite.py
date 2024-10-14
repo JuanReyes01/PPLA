@@ -91,33 +91,38 @@ def solve_tsp(nums, arrays, duration):
     from datetime import timedelta
     return instance.solve_async(timeout=timedelta(seconds=duration), intermediate_solutions=True)
 
+def write_output(output_file, solution):
+    if output_file is None:
+        output_file = sys.stdout
+
+    for m in solution:
+        m[2] = sorted(m[2], key=lambda x: x[1])
+        print(f"machine( {m[0]}, {m[1]}, {m[2]} )", file=output_file)
+
 async def main():
     # Allow optional input/output file arguments
     # If not provided, use standard input/output
     input_file = None
     output_file = None
+    duration = 10 # seconds
 
     if len(sys.argv) > 3:
-        print("Usage: python pyrewrite.py <input_file> <output_file>")
+        print("Usage: python pyrewrite.py <input_file> <output_file | duration>")
         sys.exit(1)
 
     if len(sys.argv) > 1:
         input_file = sys.argv[1]
     if len(sys.argv) > 2:
-        output_file = sys.argv[2]
+        # check if output is an integer
+        if sys.argv[2].isdigit():
+            duration = int(sys.argv[2])
+        else:
+            output_file = sys.argv[2]
 
     # Parse the input and get the number of machines and resources dynamically
     nums, arrays = parse_input(input_file)
     print(nums, arrays, file=sys.stderr)
 
-    # MiniZinc-friendly print; lowercase booleans and inner arrays are separated by |
-    #print(f"array[TESTS] of int: processing_time = {processing_time};")
-    #required_resources_str = str(required_resources).lower()[1:-2].replace('[', '|').replace(']', '')
-    #eligible_machines_str = str(eligible_machines).lower()[1:-2].replace('[', '|').replace(']', '')
-    #print(f"array[TESTS, MACHINES] of bool: eligible_machines = [{eligible_machines_str}|];")
-    #print(f"array[TESTS, RESOURCES] of bool: required_resources = [{required_resources_str}|];")
-
-    duration = 10 # seconds
     # Solve the TSP problem with the correct number of machines and resources
     solution = solve_tsp(nums, arrays, duration)
 
@@ -134,11 +139,16 @@ async def main():
 
     output = (await task)[-1]
     print(f"% Makespan :\t{output.objective}")
-    print(output.assigned_machine)
-    print(output.start_time)
+    solution = list()
+    for m in range(1, nums[1]+1):
+        solution.append([f"m{m}", 0, []])
+        for i, (am, st) in enumerate(zip(output.assigned_machine, output.start_time)):
+            if am == m:
+                solution[m-1][1] +=1
+                solution[m-1][2].append((f"t{i+1}", st))
 
     # Write the solution to the output file
-    # write_output(output_file, solution)
+    write_output(output_file, solution)
 
 asyncio.run(main())
 #if __name__ == "__main__":
