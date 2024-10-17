@@ -1,6 +1,5 @@
 % Input parameters
 
-
 int: max_makespan;
 int: num_tests;
 int: num_machines;
@@ -13,7 +12,6 @@ set of int: RESOURCES = 1..num_resources;
 array[TESTS] of int: processing_time;
 array[TESTS] of set of MACHINES: eligible_machines;
 array[TESTS] of set of RESOURCES: required_resources;
-
 
 % Decision variables
 
@@ -45,5 +43,5 @@ solve :: int_search([assigned_machine[t] | t in 1..num_tests], input_order, indo
 output [
     "Task assignment:\n", show(assigned_machine), "\n",
     "Task start times:\n", show(start_time), "\n",
-    "% Makespan: ", show(makespan)
+    "Makespan: ", show(makespan), "\n"
 ];
