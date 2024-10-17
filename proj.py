@@ -1,117 +1,165 @@
-def parse_input(input_file):
-    tests = []
-    num_machines = 0
-    num_resources = 0
-    with open(input_file, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith('% Number of machines'):
-                num_machines = int(line.split(':')[1].strip())
-            if line.startswith('% Number of resources'):
-                num_resources = int(line.split(':')[1].strip())
-            if line.startswith('test'):
-                test_data = eval(line.replace('test', ''))
-                test_data = list(test_data)
-                # Parse the machine data
-                # If no machines are specified, then all machines can handle the task
-                if len(set(test_data[2])) == 0:
-                    test_data[2] = {int(i) for i in range(1, num_machines + 1)}
-                else:
-                    data = set()
-                    for i in test_data[2]:
-                        data.add(int(i.replace('m', '')))
-                    test_data[2] = data
-                # Parse the resource data
-                # If no resources are specified, then no resources are needed
-                if len(set(test_data[3])) == 0:
-                    test_data[3] = {}
-                    #test_data[3] = str(test_data[3]).replace("set()", "{}")
-
-                else:
-                    data = set()
-                    for i in test_data[3]:
-                        data.add(int(i.replace('r', '')))
-                    test_data[3] = data
-                
-                
-                tests.append({
-                    'duration': test_data[1],
-                    'machines': test_data[2],
-                    'resources': test_data[3]
-                })
-    return tests, num_machines, num_resources
-
+import sys
 import minizinc
 
-def solve_tsp(tests, num_machines, num_resources):
-    # Define MiniZinc model
-    model = minizinc.Model()
-    model.add_file("test_schedule.mzn")
+import time
+import asyncio
 
-    # Set up MiniZinc instance
+def test(name, duration, machines, resources):
+    return {
+        'name': name,
+        'duration': duration,
+        'machines': machines,
+        'resources': resources
+    }
+
+def parse_input(input_file):
+    # Can be file or standard input
+    if input_file:
+        file = open(input_file, 'r')
+    else:
+        file = sys.stdin
+
+    tests_comment = file.readline()
+    num_tests = int(tests_comment.split(':')[1].strip())
+
+    machines_comment = file.readline()
+    num_machines = int(machines_comment.split(':')[1].strip())
+
+    resources_comment = file.readline()
+    num_resources = int(resources_comment.split(':')[1].strip())
+
+    test_durations = [0] * num_tests
+    test_machine_set = [set() for _ in range(num_tests)]
+    test_resource_set = [set() for _ in range(num_tests)]
+
+    for line in file:
+        line = line.strip()
+        if line.startswith('test'):
+            args = eval(line)
+
+            test_index = int(args['name'][1:]) - 1
+            test_durations[test_index] = args['duration']
+
+            # machines can be empty, this means all machines are eligible
+            # machine names are strings, for example 'm1'
+            if len(args['machines']) > 0:
+                for machine in args['machines']:
+                    machine_index = int(machine[1:])
+                    test_machine_set[test_index].add(machine_index)
+
+            # resources can be empty, this means no resources are required
+            # resource names are strings, for example 'r1'
+            if len(args['resources']) > 0:
+                for resource in args['resources']:
+                    resource_index = int(resource[1:])
+                    test_resource_set[test_index].add(resource_index)
+
+    # Rank tests by the number of eligible machines and resources in Python
+    test_constraints = [(i, len(test_machine_set[i]) + len(test_resource_set[i])) for i in range(num_tests)]
+    sorted_tests = sorted(test_constraints, key=lambda x: x[1])  # Sort by constraint count
+
+    # Use the sorted order when passing to MiniZinc
+    processing_time = [processing_time[i] for i, _ in sorted_tests]
+    eligible_machines = [eligible_machines[i] for i, _ in sorted_tests]
+    required_resources = [required_resources[i] for i, _ in sorted_tests]
+
+
+    nums = [num_tests, num_machines, num_resources]
+    arrays = [test_durations, test_machine_set, test_resource_set]
+
+    file.close()
+    return nums, arrays
+
+
+def solve_tsp(nums, arrays, duration):
+    model = minizinc.Model()
+    model.add_file("newnew.mzn")
+
     solver = minizinc.Solver.lookup("gecode")
     instance = minizinc.Instance(solver, model)
 
     # Load data
-    num_tests = len(tests)
+    num_tests, num_machines, num_resources = nums
+    processing_time, eligible_machines, required_resources = arrays
+
     instance["num_tests"] = num_tests
     instance["num_machines"] = num_machines
     instance["num_resources"] = num_resources
 
-    # Durations - already a list of integers
-    instance["durations"] = [test['duration'] for test in tests]
-
-    # Required machines - pass sets of machines directly
-    instance["required_machines"] = [test['machines'] for test in tests]
-
-    # Required resources - ensure that empty sets are passed correctly
-    required_resources = []
-    for res_set in [test['resources'] for test in tests]:
-        if not res_set:
-            required_resources.append(set())  # MiniZinc-compatible empty set
-        else:
-            required_resources.append(res_set)
-
+    instance["processing_time"] = processing_time
+    instance["eligible_machines"] = eligible_machines
     instance["required_resources"] = required_resources
 
     # Debug print
-    print(f"Durations: {instance['durations']}")
-    print(f"Required Machines: {instance['required_machines']}")
-    print(f"Required Resources: {instance['required_resources']}")
+    print(f"Number of tests: {instance['num_tests']}", file=sys.stderr)
+    print(f"Number of machines: {instance['num_machines']}", file=sys.stderr)
+    print(f"Number of resources: {instance['num_resources']}\n", file=sys.stderr)
+    print(f"Processing times: {instance['processing_time']}", file=sys.stderr)
+    print(f"Eligible machines: {str(instance['eligible_machines']).replace('set()', '{}')}", file=sys.stderr)
+    print(f"Required resources: {str(instance['required_resources']).replace('set()', '{}')}\n", file=sys.stderr)
 
-    # Solve and get the result
-    try:
-        result = instance.solve()
-        return result
-    except minizinc.error.MiniZincError as e:
-        print(f"Error in solving the MiniZinc model: {e}")
-        raise
-
-
-
-
+    from datetime import timedelta
+    return instance.solve_async(timeout=timedelta(seconds=duration), intermediate_solutions=True)
 
 def write_output(output_file, solution):
-    with open(output_file, 'w') as file:
-        file.write(f"% Makespan: {solution['makespan']}\n")
-        for machine in solution['machines']:
-            file.write(f"machine({machine['id']}, {len(machine['tests'])}, {machine['tests']})\n")
+    if output_file is None:
+        output_file = sys.stdout
 
-import sys
+    for m in solution:
+        m[2] = sorted(m[2], key=lambda x: x[1])
+        print(f"machine( {m[0]}, {m[1]}, {m[2]} )", file=output_file)
 
-def main():
-    input_file = sys.argv[1]
-    output_file = sys.argv[2]
+async def main():
+    # Allow optional input/output file arguments
+    # If not provided, use standard input/output
+    input_file = None
+    output_file = None
+    duration = 10 # seconds
+
+    if len(sys.argv) > 3:
+        print("Usage: python pyrewrite.py <input_file> <output_file | duration>")
+        sys.exit(1)
+
+    if len(sys.argv) > 1:
+        input_file = sys.argv[1]
+    if len(sys.argv) > 2:
+        # check if output is an integer
+        if sys.argv[2].isdigit():
+            duration = int(sys.argv[2])
+        else:
+            output_file = sys.argv[2]
 
     # Parse the input and get the number of machines and resources dynamically
-    tests, num_machines, num_resources = parse_input(input_file)
-    
+    nums, arrays = parse_input(input_file)
+    print(nums, arrays, file=sys.stderr)
+
     # Solve the TSP problem with the correct number of machines and resources
-    solution = solve_tsp(tests, num_machines, num_resources)
+    solution = solve_tsp(nums, arrays, duration)
+
+    task = asyncio.ensure_future(solution)
+    start = time.time()
+
+    while not task.done():
+        elapsed = time.time() - start
+        progress = min(1.0, elapsed / duration)
+        bar = "#" * int(progress * 50)
+        print(f"\rProgress: [{bar:<50}] {int(progress * 100)}%", end="", file=sys.stderr)
+        await asyncio.sleep(0.1)
+    print(file=sys.stderr)
+
+    output = (await task)[-1]
+    print(f"% Makespan :\t{output.objective}")
+    solution = list()
+    for m in range(1, nums[1]+1):
+        solution.append([f"m{m}", 0, []])
+        for i, (am, st) in enumerate(zip(output.assigned_machine, output.start_time)):
+            if am == m:
+                solution[m-1][1] +=1
+                solution[m-1][2].append((f"t{i+1}", st))
 
     # Write the solution to the output file
-    # write_output(output_file, solution)
+    write_output(output_file, solution)
 
-if __name__ == "__main__":
-    main()
-
+asyncio.run(main())
+#if __name__ == "__main__":
+#    main()
