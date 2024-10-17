@@ -1,53 +1,56 @@
-int: num_tasks;      % Number of tasks
-int: num_machines;   % Number of machines
-int: num_resources;  % Number of resources
+% Input parameters
 
-array[1..num_tasks] of int: processing_time;  % Processing time for each task
-array[1..num_tasks] of set of 1..num_machines: eligible_machines; % Eligible machines for each task
-array[1..num_tasks] of set of 1..num_resources: required_resources; % Resources required by each task
+int: num_tests;
+int: num_machines;
+int: num_resources;
+
+set of int: TESTS = 1..num_tests;
+set of int: MACHINES = 1..num_machines;
+set of int: RESOURCES = 1..num_resources;
+
+array[TESTS] of int: processing_time;
+array[TESTS] of set of MACHINES: eligible_machines;
+array[TESTS] of set of RESOURCES: required_resources;
+
 
 % Decision variables
-array[1..num_tasks] of var 1..num_machines: assigned_machine;  % Assigned machine for each task
-array[1..num_tasks] of var 0..: completion_time;  % Completion time for each task
-array[1..num_tasks] of var 0..: start_time;  % Start time for each task
 
-% Objective: Minimize the makespan (total completion time)
-var int: makespan = max([completion_time[t] | t in 1..num_tasks]);
+array[TESTS] of var MACHINES: assigned_machine;
+array[TESTS] of var 0..sum(processing_time): start_time;
+
+var int: makespan = max([start_time[t] + processing_time[t] | t in TESTS]);
 
 % Constraints
-constraint forall(t in 1..num_tasks) (
-    assigned_machine[t] in eligible_machines[t]  % Ensure tasks are assigned to eligible machines
-);
 
-% Ensure completion times are correct
-constraint forall(t in 1..num_tasks) (
-    completion_time[t] = start_time[t] + processing_time[t]
-);
+constraint
+    forall(t1, t2 in TESTS where t1 < t2) (
+        % Condition for task overlap based on machine and resource usage
+        ((assigned_machine[t1] = assigned_machine[t2] \/ 
+          card(required_resources[t1] intersect required_resources[t2]) > 0) -> 
+          no_overlap(start_time[t1], processing_time[t1], start_time[t2], processing_time[t2])
+        )
+    ) /\
+    % Ensure tasks are assigned to eligible machines and each machine has at least one task
+    forall(t in TESTS) (
+        assigned_machine[t] in eligible_machines[t] \/ card(eligible_machines[t]) == 0
+    ) /\
+    forall(m in MACHINES) (
+        exists(t in TESTS) (assigned_machine[t] = m)
+    ) /\
+    % Makespan definition
+    makespan = max([start_time[t] + processing_time[t] | t in TESTS]);
 
-% No overlap: Tasks assigned to the same machine cannot overlap in time
-constraint forall(i in 1..num_tasks, j in 1..num_tasks where i != j) (
-    assigned_machine[i] = assigned_machine[j] -> 
-    (start_time[i] >= completion_time[j] \/ start_time[j] >= completion_time[i])
-);
-
-% Resource constraint: No two tasks using the same resource can run in parallel
-constraint forall(r in 1..num_resources) (
-    forall(i, j in 1..num_tasks where i != j /\ r in required_resources[i] /\ r in required_resources[j]) (
-        start_time[i] >= completion_time[j] \/ start_time[j] >= completion_time[i]
-    )
-);
-
-% Solve for minimum makespan
-solve minimize makespan;
+solve :: seq_search([
+            int_search(assigned_machine, smallest, indomain_random),
+            int_search(start_time, first_fail, indomain_min),
+        ])
+      :: restart_linear(1)
+    minimize makespan;
 
 % Output
+
 output [
-  "Task assignment:\n",
-  show(assigned_machine), "\n",
-  "Task start times:\n",
-  show(start_time), "\n",
-  "Task completion times:\n",
-  show(completion_time), "\n",
-  "Makespan: \n",
-  show(makespan)
+    "Task assignment:\n", show(assigned_machine), "\n",
+    "Task start times:\n", show(start_time), "\n",
+    "% Makespan: ", show(makespan)
 ];
