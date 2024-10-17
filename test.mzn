@@ -36,6 +36,7 @@ constraint forall(t1,t2 in TESTS where t1 < t2)
 
 solve :: int_search([assigned_machine[t] | t in 1..num_tests], input_order, indomain_min, complete)
       :: int_search([start_time[t] | t in 1..num_tests], input_order, indomain_min, complete)
+      :: restart_linear(1) 
       minimize makespan;
 
 % Output
