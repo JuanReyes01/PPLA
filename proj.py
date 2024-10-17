@@ -44,6 +44,10 @@ def parse_input(input_file):
             # machine names are strings, for example 'm1'
             if len(args['machines']) > 0:
                 for machine in args['machines']:
+                    # if machine is empty, replace with [1..num_machines]
+                    if machine == '[]':
+                        test_machine_set[test_index] = set(range(1, num_machines + 1))
+                        break
                     machine_index = int(machine[1:])
                     test_machine_set[test_index].add(machine_index)
 
