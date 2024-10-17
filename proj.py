@@ -28,6 +28,9 @@ def parse_input(input_file):
     resources_comment = file.readline()
     num_resources = int(resources_comment.split(':')[1].strip())
 
+    makespan_comment = file.readline()
+    max_makespan = int(makespan_comment.split(':')[1].strip())
+
     test_durations = [0] * num_tests
     test_machine_set = [set() for _ in range(num_tests)]
     test_resource_set = [set() for _ in range(num_tests)]
@@ -54,37 +57,38 @@ def parse_input(input_file):
                     resource_index = int(resource[1:])
                     test_resource_set[test_index].add(resource_index)
 
-    # Rank tests by the number of eligible machines and resources in Python
+    # Rank tests by the number of eligible machines and resources
     test_constraints = [(i, len(test_machine_set[i]) + len(test_resource_set[i])) for i in range(num_tests)]
     sorted_tests = sorted(test_constraints, key=lambda x: x[1])  # Sort by constraint count
 
     # Use the sorted order when passing to MiniZinc
-    processing_time = [processing_time[i] for i, _ in sorted_tests]
-    eligible_machines = [eligible_machines[i] for i, _ in sorted_tests]
-    required_resources = [required_resources[i] for i, _ in sorted_tests]
+    test_durations = [test_durations[i] for i, _ in sorted_tests]
+    test_machine_set = [test_machine_set[i] for i, _ in sorted_tests]
+    test_resource_set = [test_resource_set[i] for i, _ in sorted_tests]
 
-
-    nums = [num_tests, num_machines, num_resources]
+    nums = [num_tests, num_machines, num_resources, max_makespan]
     arrays = [test_durations, test_machine_set, test_resource_set]
 
     file.close()
     return nums, arrays
 
 
+
 def solve_tsp(nums, arrays, duration):
     model = minizinc.Model()
-    model.add_file("newnew.mzn")
+    model.add_file("test.mzn")
 
     solver = minizinc.Solver.lookup("gecode")
     instance = minizinc.Instance(solver, model)
 
     # Load data
-    num_tests, num_machines, num_resources = nums
+    num_tests, num_machines, num_resources, max_makespan = nums
     processing_time, eligible_machines, required_resources = arrays
 
     instance["num_tests"] = num_tests
     instance["num_machines"] = num_machines
     instance["num_resources"] = num_resources
+    instance["max_makespan"] = max_makespan
 
     instance["processing_time"] = processing_time
     instance["eligible_machines"] = eligible_machines
@@ -100,6 +104,7 @@ def solve_tsp(nums, arrays, duration):
 
     from datetime import timedelta
     return instance.solve_async(timeout=timedelta(seconds=duration), intermediate_solutions=True)
+
 
 def write_output(output_file, solution):
     if output_file is None:

@@ -1,5 +1,7 @@
 % Input parameters
 
+
+int: max_makespan;
 int: num_tests;
 int: num_machines;
 int: num_resources;
