@@ -58,7 +58,7 @@ def parse_input(input_file):
 
     # Rank tests by the number of eligible machines and resources
     test_constraints = [(i, len(test_machine_set[i]), len(test_resource_set[i])) for i in range(num_tests)]
-    sorted_tests = sorted(test_constraints, key=lambda x: (x[1] if x[1] != 0 else 999,-x[2]))  # Sort by machine count first, then resource count
+    sorted_tests = sorted(test_constraints, key=lambda x: (-x[2], x[1] if x[1] != 0 else 999))  # Sort by machine count first, then resource count
 
     # Use the sorted order when passing to MiniZinc
     test_durations = [test_durations[i] for i, _, _ in sorted_tests]
