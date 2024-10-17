@@ -55,13 +55,13 @@ def parse_input(input_file):
                     test_resource_set[test_index].add(resource_index)
 
     # Rank tests by the number of eligible machines and resources
-    test_constraints = [(i, len(test_machine_set[i]) + len(test_resource_set[i])) for i in range(num_tests)]
-    sorted_tests = sorted(test_constraints, key=lambda x: x[1])  # Sort by constraint count
+    test_constraints = [(i, len(test_machine_set[i]), len(test_resource_set[i])) for i in range(num_tests)]
+    sorted_tests = sorted(test_constraints, key=lambda x: (x[1],-x[2]))  # Sort by machine count first, then resource count
 
     # Use the sorted order when passing to MiniZinc
-    test_durations = [test_durations[i] for i, _ in sorted_tests]
-    test_machine_set = [test_machine_set[i] for i, _ in sorted_tests]
-    test_resource_set = [test_resource_set[i] for i, _ in sorted_tests]
+    test_durations = [test_durations[i] for i, _, _ in sorted_tests]
+    test_machine_set = [test_machine_set[i] for i, _, _ in sorted_tests]
+    test_resource_set = [test_resource_set[i] for i, _, _ in sorted_tests]
 
     max_makespan = sum(test_durations)
 
