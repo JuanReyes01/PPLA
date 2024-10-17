@@ -34,9 +34,8 @@ constraint forall(t1,t2 in TESTS where t1 < t2)
     (not no_overlap(start_time[t1], processing_time[t1], start_time[t2], processing_time[t2]) ->
     (card(required_resources[t1] intersect required_resources[t2]) = 0) /\ (assigned_machine[t1] != assigned_machine[t2]));
 
-solve :: int_search([assigned_machine[t] | t in 1..num_tests], input_order, indomain_min, complete)
-      :: int_search([start_time[t] | t in 1..num_tests], input_order, indomain_min, complete)
-      :: restart_linear(1) 
+solve :: int_search(assigned_machine, input_order, indomain_random, complete)
+      :: int_search(start_time, input_order, indomain_min, complete)
       minimize makespan;
 
 % Output

@@ -45,9 +45,7 @@ def parse_input(input_file):
             if len(args['machines']) > 0:
                 for machine in args['machines']:
                     # if machine is empty, replace with [1..num_machines]
-                    if len(machine) == 0:
-                        test_machine_set[test_index] = set(range(1, num_machines + 1))
-                        break
+                    
                     machine_index = int(machine[1:])
                     test_machine_set[test_index].add(machine_index)
 
@@ -60,7 +58,7 @@ def parse_input(input_file):
 
     # Rank tests by the number of eligible machines and resources
     test_constraints = [(i, len(test_machine_set[i]), len(test_resource_set[i])) for i in range(num_tests)]
-    sorted_tests = sorted(test_constraints, key=lambda x: (x[1],-x[2]))  # Sort by machine count first, then resource count
+    sorted_tests = sorted(test_constraints, key=lambda x: (x[1] if x[1] != 0 else 999,-x[2]))  # Sort by machine count first, then resource count
 
     # Use the sorted order when passing to MiniZinc
     test_durations = [test_durations[i] for i, _, _ in sorted_tests]
@@ -122,7 +120,7 @@ async def main():
     # If not provided, use standard input/output
     input_file = None
     output_file = None
-    duration = 10 # seconds
+    duration = 290 # seconds
 
     if len(sys.argv) > 3:
         print("Usage: python pyrewrite.py <input_file> <output_file | duration>")
