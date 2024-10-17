@@ -28,9 +28,6 @@ def parse_input(input_file):
     resources_comment = file.readline()
     num_resources = int(resources_comment.split(':')[1].strip())
 
-    makespan_comment = file.readline()
-    max_makespan = int(makespan_comment.split(':')[1].strip())
-
     test_durations = [0] * num_tests
     test_machine_set = [set() for _ in range(num_tests)]
     test_resource_set = [set() for _ in range(num_tests)]
@@ -65,6 +62,8 @@ def parse_input(input_file):
     test_durations = [test_durations[i] for i, _ in sorted_tests]
     test_machine_set = [test_machine_set[i] for i, _ in sorted_tests]
     test_resource_set = [test_resource_set[i] for i, _ in sorted_tests]
+
+    max_makespan = sum(test_durations)
 
     nums = [num_tests, num_machines, num_resources, max_makespan]
     arrays = [test_durations, test_machine_set, test_resource_set]
