@@ -104,7 +104,7 @@ async def main():
     # If not provided, use standard input/output
     input_file = None
     output_file = None
-    duration = 10 # seconds
+    duration = 250 # seconds
 
     if len(sys.argv) > 3:
         print("Usage: python pyrewrite.py <input_file> <output_file | duration>")
