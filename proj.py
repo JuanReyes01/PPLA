@@ -60,10 +60,9 @@ def parse_input(input_file):
     file.close()
     return nums, arrays
 
-
 def solve_tsp(nums, arrays, duration):
     model = minizinc.Model()
-    model.add_file("newnew.mzn")
+    model.add_file("model.mzn")
 
     solver = minizinc.Solver.lookup("gecode")
     instance = minizinc.Instance(solver, model)
@@ -80,65 +79,56 @@ def solve_tsp(nums, arrays, duration):
     instance["eligible_machines"] = eligible_machines
     instance["required_resources"] = required_resources
 
-    # Debug print
-    print(f"Number of tests: {instance['num_tests']}", file=sys.stderr)
-    print(f"Number of machines: {instance['num_machines']}", file=sys.stderr)
-    print(f"Number of resources: {instance['num_resources']}\n", file=sys.stderr)
-    print(f"Processing times: {instance['processing_time']}", file=sys.stderr)
-    print(f"Eligible machines: {str(instance['eligible_machines']).replace('set()', '{}')}", file=sys.stderr)
-    print(f"Required resources: {str(instance['required_resources']).replace('set()', '{}')}\n", file=sys.stderr)
-
     from datetime import timedelta
     return instance.solve_async(timeout=timedelta(seconds=duration), intermediate_solutions=True)
 
-def write_output(output_file, solution):
-    if output_file is None:
-        output_file = sys.stdout
+def write_output(output, solution, makespan):
+    output_file = sys.stdout
+    if output is not None:
+        output_file = open(output, 'w')
 
+    print(f"% Makespan :\t{makespan}", file=output_file)
     for m in solution:
         m[2] = sorted(m[2], key=lambda x: x[1])
         print(f"machine( {m[0]}, {m[1]}, {m[2]} )", file=output_file)
+    output_file.close()
 
 async def main():
     # Allow optional input/output file arguments
     # If not provided, use standard input/output
     input_file = None
     output_file = None
-    duration = 250 # seconds
+    duration = 300 # seconds
 
     if len(sys.argv) > 3:
-        print("Usage: python pyrewrite.py <input_file> <output_file | duration>")
+        print("Usage: python pyrewrite.py <input_file> <output_file>")
         sys.exit(1)
 
     if len(sys.argv) > 1:
         input_file = sys.argv[1]
     if len(sys.argv) > 2:
-        # check if output is an integer
-        if sys.argv[2].isdigit():
-            duration = int(sys.argv[2])
-        else:
-            output_file = sys.argv[2]
+        output_file = sys.argv[2]
 
     # Parse the input and get the number of machines and resources dynamically
     nums, arrays = parse_input(input_file)
-    print(nums, arrays, file=sys.stderr)
 
     # Solve the TSP problem with the correct number of machines and resources
     solution = solve_tsp(nums, arrays, duration)
 
     task = asyncio.ensure_future(solution)
-    start = time.time()
 
-    while not task.done():
-        elapsed = time.time() - start
-        progress = min(1.0, elapsed / duration)
-        bar = "#" * int(progress * 50)
-        print(f"\rProgress: [{bar:<50}] {int(progress * 100)}%", end="", file=sys.stderr)
-        await asyncio.sleep(0.1)
-    print(file=sys.stderr)
+    if False:
+        start = time.time()
+
+        while not task.done():
+            elapsed = time.time() - start
+            progress = min(1.0, elapsed / duration)
+            bar = "#" * int(progress * 50)
+            print(f"\rProgress: [{bar:<50}] {int(progress * 100)}%", end="", file=sys.stderr)
+            await asyncio.sleep(0.1)
+        print(file=sys.stderr)
 
     output = (await task)[-1]
-    print(f"% Makespan :\t{output.objective}")
     solution = list()
     for m in range(1, nums[1]+1):
         solution.append([f"m{m}", 0, []])
@@ -148,7 +138,7 @@ async def main():
                 solution[m-1][2].append((f"t{i+1}", st))
 
     # Write the solution to the output file
-    write_output(output_file, solution)
+    write_output(output_file, solution, output.objective)
 
 asyncio.run(main())
 #if __name__ == "__main__":
