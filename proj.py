@@ -86,12 +86,15 @@ def write_output(output, solution, makespan):
     output_file = sys.stdout
     if output is not None:
         output_file = open(output, 'w')
+    else:
+        file = open(output_file, 'w')
 
-    print(f"% Makespan :\t{makespan}", file=output_file)
     for m in solution:
         m[2] = sorted(m[2], key=lambda x: x[1])
-        print(f"machine( {m[0]}, {m[1]}, {m[2]} )", file=output_file)
-    output_file.close()
+        print(f"machine( {m[0]}, {m[1]}, {m[2]} )", file=file)
+
+    if file is not sys.stdout:
+        file.close()
 
 async def main():
     # Allow optional input/output file arguments
