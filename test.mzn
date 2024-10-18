@@ -1,6 +1,5 @@
 % Input parameters
 
-int: max_makespan;
 int: num_tests;
 int: num_machines;
 int: num_resources;
@@ -13,10 +12,11 @@ array[TESTS] of int: processing_time;
 array[TESTS] of set of MACHINES: eligible_machines;
 array[TESTS] of set of RESOURCES: required_resources;
 
+
 % Decision variables
 
-array[1..num_tests] of var 1..num_machines: assigned_machine;
-array[1..num_tests] of var 0..max_makespan: start_time;
+array[TESTS] of var MACHINES: assigned_machine;
+array[TESTS] of var 0..sum(processing_time): start_time;
 
 var int: makespan = max([start_time[t] + processing_time[t] | t in TESTS]);
 
@@ -39,12 +39,12 @@ solve :: seq_search([
             int_search(start_time, first_fail, indomain_min),
         ])
       :: restart_linear(1)
-      minimize makespan;
+    minimize makespan;
 
 % Output
 
 output [
     "Task assignment:\n", show(assigned_machine), "\n",
     "Task start times:\n", show(start_time), "\n",
-    "Makespan: ", show(makespan), "\n"
+    "% Makespan: ", show(makespan)
 ];
