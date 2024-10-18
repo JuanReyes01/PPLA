@@ -35,7 +35,7 @@ constraint forall(t1,t2 in TESTS where t1 < t2)
     (card(required_resources[t1] intersect required_resources[t2]) = 0) /\ (assigned_machine[t1] != assigned_machine[t2]));
 
 solve :: seq_search([
-            int_search(assigned_machine, input_order, indomain_random),
+            int_search(assigned_machine, smallest, indomain_random),
             int_search(start_time, input_order, indomain_min),
         ])
       :: restart_linear(1)
