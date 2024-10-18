@@ -36,7 +36,7 @@ constraint forall(t1,t2 in TESTS where t1 < t2)
 
 solve :: seq_search([
             int_search(assigned_machine, smallest, indomain_random),
-            int_search(start_time, input_order, indomain_min),
+            int_search(start_time, first_fail, indomain_min),
         ])
       :: restart_linear(1)
       minimize makespan;
